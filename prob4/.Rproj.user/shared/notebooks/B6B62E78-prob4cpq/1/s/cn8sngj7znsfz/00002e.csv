@@ -1,0 +1,4 @@
+"0","diferenca = git_c[, ""day""]"
+"0","diferenca$Media = abs(git_c$Media -git_py$Media)"
+"0","ggplot(data=diferenca, aes(x=day, y=Media)) +"
+"0","  geom_bar(stat=""identity"",fill=""steelblue"")"

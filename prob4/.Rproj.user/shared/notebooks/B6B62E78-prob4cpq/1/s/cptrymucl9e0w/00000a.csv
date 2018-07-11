@@ -1,0 +1,7 @@
+"0","git_c = linguagem_c %>% group_by(day) %>% summarise(Total = sum(users), Media = mean(users), Mediana = median(users), Desvio = sd(users))"
+"0","git_py = linguagem_py %>% group_by(day) %>% summarise(Total = sum(users), Media = mean(users), Mediana = median(users), Desvio = sd(users))"
+"0","rotulo <- c(""Dias"", ""Total"")"
+"0","library(ggplot2)"
+"0","p<-ggplot(data=git_c, aes(x=day, y=Media)) +"
+"0","  geom_bar(stat=""identity"",fill=""steelblue"")"
+"0","p"

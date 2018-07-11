@@ -1,0 +1,46 @@
+---
+title: 'Prob 4, CP 1: Um problema pequeno'
+author: "Thierry Barros"
+date: "July 10, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+
+library(tidyverse)
+github = read_csv("github.csv",
+                  col_types = cols(
+                        file_extension = col_character(),
+                        month_day = col_character(),
+                        the_month = col_character(),
+                        the_year = col_character(),
+                        users = col_integer())
+  )
+```
+
+```{r}
+library(lubridate)
+
+
+github1$date = paste(github1$month_day, github1$the_month, github1$the_year, sep="-")
+github1$day = format.Date(as.Date(github1$date), "%A") 
+
+linguagem_c = github1[github1$file_extension == c("c"),]
+linguagem_py = github1[github1$file_extension == c("py"),]
+
+git = linguagem_py %>% group_by(file_extension,day) %>% summarise(Total = sum(users), Media = mean(users), Mediana = median(users))
+
+rotulo <- c("Dias", "Total")
+
+library(ggplot2)
+# Basic barplot
+p<-ggplot(data=git, aes(x=day, y=Total)) +
+  geom_bar(stat="identity",fill="steelblue")
+p
+```
+
+

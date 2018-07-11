@@ -1,0 +1,3 @@
+"0","p<-ggplot(data=git_py, aes(x=day, y=Media)) +"
+"0","  geom_bar(stat=""identity"",fill=""steelblue"")"
+"0","p"

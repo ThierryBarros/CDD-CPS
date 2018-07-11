@@ -1,0 +1,172 @@
+---
+title: 'Prob 4, CP 1: Um problema pequeno'
+author: "Thierry Barros"
+date: "July 10, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+
+library(tidyverse)
+github = read_csv("github.csv",
+                  col_types = cols(
+                        file_extension = col_character(),
+                        month_day = col_character(),
+                        the_month = col_character(),
+                        the_year = col_character(),
+                        users = col_integer())
+  )
+```
+
+
+Os dados a serem utilizados são dados da atividade global do github. As linguagens que serão analisadas serão linguagem c e python. Duas linguagens bem famosas entre os programadores. Foram coletados quase 500 observações de cada uma das linguagens.
+
+```{r}
+library(lubridate)
+#Omitindo os dados nulos(Mas não tinha nenhum)
+github = na.omit(github)
+
+#Classificando as observações por dia da semana
+github$date = paste(github$month_day, github$the_month, github$the_year, sep="-")
+github$day = format.Date(as.Date(github$date), "%A") 
+
+#Pegando só duas linguagens c e python
+linguagem_c = github[github$file_extension == c("c"),]
+linguagem_py = github[github$file_extension == c("py"),]
+
+linguagens= github[github$file_extension == c("py","c"),]
+
+sd(linguagem_c$users)
+sd(linguagem_py$users)
+
+
+linguagens %>% 
+    ggplot(aes(x = day, y = users)) + 
+    geom_boxplot(width = .5, outlier.color = NA) +   
+    geom_jitter(width = .1, size = 2, alpha = .5, color = "red")+ xlab("Dias da semana") +
+  ylab("Popularidade")
+
+```
+
+Como podemos ver acima os dados não possuiam nenhum problema com valores faltantes e o desvio padrão foi relativamente alto, gerando os boxplotos por dia da semana não tem nenhum outlier nos dados, então não foi preciso fazer nenhum tratamento dos dados.O único tratamento foi descobrir o dia da semana relativo a data mostrada nos dados.
+
+##Para cada uma delas, há uma diferença significativa na sua popularidade durante a semana e durante o fim de semana? Essa diferença é grande?
+```{r}
+git_c = linguagem_c %>% group_by(day) %>% summarise(Total = sum(users), Media = mean(users), Mediana = median(users), Desvio = sd(users))
+
+git_py = linguagem_py %>% group_by(day) %>% summarise(Total = sum(users), Media = mean(users), Mediana = median(users), Desvio = sd(users))
+rotulo <- c("Dias", "Total")
+
+library(ggplot2)
+
+p<-ggplot(data=git_c, aes(x=day, y=Media)) +
+  geom_bar(stat="identity",fill="steelblue")
+p
+
+p<-ggplot(data=git_py, aes(x=day, y=Media)) +
+  geom_bar(stat="identity",fill="steelblue")
+p
+
+```
+
+COmo podemos ver nas duas linguagens a popularidade no final de semana em comparação com os dias de semana não varia muito, não parece ter nenhuma influência dos dados em relação aos dias da semana. A diferença de popularidade nos finais de semana na linguagem python é um pouco maior doque na linguagem c, mas em ambas a diferença é muito pouca.
+
+##Existe uma diferença significativa entre a popularidade das duas linguagens nos fins de semana?
+
+```{r}
+library(ggplot2)
+library(plotly)
+
+linguagens= github[github$file_extension == c("py","c"),]
+
+git = linguagens %>% group_by(file_extension,day) %>% summarise(Total = sum(users), Media = mean(users), Mediana = median(users), Desvio = sd(users))
+
+
+
+ggplot(data=git, aes(x=git$day, y=git$Media, group = git$file_extension, colour = as.factor(git$file_extension))) + geom_line() + xlab("Dias da semana") + ylab("Popularidade das linguagens")
+
+
+ggplot(data=git, aes(x=git$day, y=git$Desvio, group = git$file_extension, colour = as.factor(git$file_extension))) + geom_line() + xlab("Dias da semana") + ylab("Popularidade das linguagens")
+
+ggplot(git, aes(x = git$day, y = git$Media, fill = git$file_extension)) + 
+  geom_bar(stat = "identity") + 
+  xlab("Dias da semana") +
+  ylab("Media de popularidade")+
+  coord_flip()
+```
+
+Olhando a diferença de popularidade entres as linguagens utilizando a média e o desvio padrão a diferença é grande em todos os dias não só nos finais de semana, isso já era de se esperar já que a popularidade nos finais de semana ,analisada anteriormente, era igual ou parecida a todos os outros dias, então é lógico pensar que a diferença seria parecida também. Os dia da semana não parece influenciar em nada na popularidade e além disso no domingo a diferença é menor que nos outros dias.
+
+```{r}
+diferenca = git_c[, "day"]
+diferenca = diferenca[diferenca$day == c("Saturday","Sunday"),]
+diferenca$Media = abs(git_c[git_c$day == c("Saturday","Sunday"),]$Media -git_py[git_py$day == c("Saturday","Sunday"),]$Media)
+
+ggplot(data=diferenca, aes(x=day, y=Media)) +
+  geom_bar(stat="identity",fill="steelblue")
+
+
+diferenca = git_c[, "day"]
+diferenca$Media = abs(git_c$Media -git_py$Media)
+
+ggplot(data=diferenca, aes(x=day, y=Media)) +
+  geom_bar(stat="identity",fill="steelblue")
+```
+
+Outra maneira de responder essa questão é olhando a média de popularidade através de uma gráfico de barras, podemos confirmar que a diferença é basicamente a mesma em todos os dias.
+
+#A popularidade das linguagens aumentaram ao longo do tempo?
+```{r}
+
+library(dygraphs)
+library(xts)
+
+linguagens$ano <- format(linguagens$the_year,format = "%Y")
+
+linguagem_c = linguagens[linguagens$file_extension == c("c"),]
+linguagem_py = linguagens[linguagens$file_extension == c("py"),]
+
+
+py_xts = xts(linguagem_py$users,order.by=as.Date(linguagem_py$date),frequency=365)
+c_xts = xts(linguagem_c$users,order.by=as.Date(linguagem_c$date),frequency=365)
+
+nhtemp = cbind(py_xts)
+
+dygraph(nhtemp, main = "Média de popularidade das canções através dos anos") %>% 
+  dyRangeSelector()
+
+nhtemp = cbind(c_xts)
+
+dygraph(nhtemp, main = "Média de popularidade das canções através dos anos") %>% 
+  dyRangeSelector()
+```
+
+Como podemos ver a popularidade da linguagem não parece ter aumentado nem diminuido a sempre uma grande variação dias que ela sobe muito e depois decai mantendo uma média relativamente parecida ao longo do tempo.
+
+#Como é o comportamento da popularidade em razão dos meses?
+
+```{r}
+git_c = linguagem_c %>% group_by(the_month) %>% summarise(Total = sum(users), Media = mean(users), Mediana = median(users), Desvio = sd(users))
+
+git_py = linguagem_py %>% group_by(the_month) %>% summarise(Total = sum(users), Media = mean(users), Mediana = median(users), Desvio = sd(users))
+rotulo <- c("Dias", "Total")
+
+library(ggplot2)
+
+p<-ggplot(data=git_c, aes(x=the_month, y=Media)) +
+  geom_bar(stat="identity",fill="steelblue")
+p
+
+p<-ggplot(data=git_py, aes(x=the_month, y=Media)) +
+  geom_bar(stat="identity",fill="steelblue")
+p
+```
+Podemos ver que nessa pergunta os meses parecem influenciar um pouco mais doque os dias da semana, os primeiros meses do anos aparecem com uma popularidade maior doque os ultimos, isso é interessante de se pensar já que não era algo esperado.
+
+Com uma breve análise podemos responder algumas questionamentos sobre o conjunto de dados e podemos ver as influências que umas características tem sobre as outras.
+
+

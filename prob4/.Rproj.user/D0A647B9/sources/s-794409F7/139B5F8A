@@ -1,0 +1,29 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1531270911358.000,
+    "dirty" : false,
+    "encoding" : "",
+    "folds" : "",
+    "hash" : "0",
+    "id" : "139B5F8A",
+    "lastKnownWriteTime" : 31244212048494639,
+    "last_content_update" : 1531270911358,
+    "path" : null,
+    "project_path" : null,
+    "properties" : {
+        "cacheKey" : "4ABC80CB",
+        "caption" : "linguagem_py",
+        "contentUrl" : "grid_resource/gridviewer.html?env=&obj=linguagem_py&cache_key=4ABC80CB",
+        "displayedObservations" : 496,
+        "environment" : "",
+        "object" : "linguagem_py",
+        "preview" : 0,
+        "totalObservations" : 496,
+        "variables" : 7
+    },
+    "relative_order" : 3,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_dataframe"
+}

@@ -1,0 +1,24 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1531259734233.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "3999566099",
+    "id" : "D863C45C",
+    "lastKnownWriteTime" : 1531271265,
+    "last_content_update" : 1531271265100,
+    "path" : "C:/Users/Thierry/EDA/prob4/prob4cpq.Rmd",
+    "project_path" : "prob4cpq.Rmd",
+    "properties" : {
+        "cursorPosition" : "54,338",
+        "last_setup_crc32" : "794409F7bb338d19",
+        "scrollLine" : "53",
+        "tempName" : "Untitled1"
+    },
+    "relative_order" : 5,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_markdown"
+}

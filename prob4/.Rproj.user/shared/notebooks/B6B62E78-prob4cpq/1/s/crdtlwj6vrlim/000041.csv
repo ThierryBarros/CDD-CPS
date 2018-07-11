@@ -1,0 +1,5 @@
+"0","ggplot(git, aes(x = git$day, y = git$Media, fill = git$file_extension)) + "
+"0","  geom_bar(stat = ""identity"") + "
+"0","  xlab(""Dias da semana"") +"
+"0","  ylab(""Media de popularidade"")+"
+"0","  coord_flip()"

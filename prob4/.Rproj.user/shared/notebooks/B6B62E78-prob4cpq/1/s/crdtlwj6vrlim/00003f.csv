@@ -1,0 +1,1 @@
+"0","ggplot(data=git, aes(x=git$day, y=git$Desvio, group = git$file_extension, colour = as.factor(git$file_extension))) + geom_line() + xlab(""Dias da semana"") + ylab(""Popularidade das linguagens"")"

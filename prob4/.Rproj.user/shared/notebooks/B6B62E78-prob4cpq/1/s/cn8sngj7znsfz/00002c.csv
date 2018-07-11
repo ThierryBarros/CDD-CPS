@@ -1,0 +1,8 @@
+"0","diferenca = git_c[, ""day""]"
+"0","diferenca = diferenca[diferenca$day == c(""Saturday"",""Sunday""),]"
+"2","longer object length is not a multiple of shorter object length"
+"0","diferenca$Media = abs(git_c[git_c$day == c(""Saturday"",""Sunday""),]$Media -git_py[git_py$day == c(""Saturday"",""Sunday""),]$Media)"
+"2","longer object length is not a multiple of shorter object length"
+"2","longer object length is not a multiple of shorter object length"
+"0","ggplot(data=diferenca, aes(x=day, y=Media)) +"
+"0","  geom_bar(stat=""identity"",fill=""steelblue"")"

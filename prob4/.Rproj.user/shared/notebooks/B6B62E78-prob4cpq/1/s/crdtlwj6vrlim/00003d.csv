@@ -1,0 +1,5 @@
+"0","library(ggplot2)"
+"0","library(plotly)"
+"0","linguagens= github[github$file_extension == c(""py"",""c""),]"
+"0","git = linguagens %>% group_by(file_extension,day) %>% summarise(Total = sum(users), Media = mean(users), Mediana = median(users), Desvio = sd(users))"
+"0","ggplot(data=git, aes(x=git$day, y=git$Media, group = git$file_extension, colour = as.factor(git$file_extension))) + geom_line() + xlab(""Dias da semana"") + ylab(""Popularidade das linguagens"")"
