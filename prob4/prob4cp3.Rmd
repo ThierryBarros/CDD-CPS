@@ -1,0 +1,348 @@
+---
+title: 'Prob 4 CP 3: Suas análises'
+author: "Thierry Barros"
+date: "July 16, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+
+library(here)
+library(readr)
+library(tidyverse)
+library(resample)
+library(timeDate)
+library(lubridate)
+github = read_csv("github.csv",
+                  col_types = cols(
+                        file_extension = col_character(),
+                        month_day = col_character(),
+                        the_month = col_character(),
+                        the_year = col_character(),
+                        users = col_integer())
+  )
+```
+
+
+Os dados a serem utilizados são dados da atividade global do github. As linguagens que serão analisadas serão linguagem c e python. Duas linguagens bem famosas entre os programadores. Foram coletados quase 500 observações de cada uma das linguagens.
+
+```{r}
+library(lubridate)
+#Omitindo os dados nulos(Mas não tinha nenhum)
+github = na.omit(github)
+
+#Classificando as observações por dia da semana
+github$date = paste(github$month_day, github$the_month, github$the_year, sep="-")
+github$day = format.Date(as.Date(github$date), "%A") 
+
+linguagens= github[github$file_extension == c("py","c"),]
+
+#Classificando as observações por dia da semana
+github$date = paste(github$month_day, github$the_month, github$the_year, sep="-")
+github$day = format.Date(as.Date(github$date), "%A") 
+
+linguagens %>% 
+    ggplot(aes(x = day, y = users)) + 
+    geom_boxplot(width = .5, outlier.color = NA) +   
+    geom_jitter(width = .1, size = 2, alpha = .5, color = "red")+ xlab("Dias da semana") +
+  ylab("Popularidade")
+
+```
+
+Como podemos ver acima os dados não possuiam nenhum problema com valores faltantes e o desvio padrão foi relativamente alto, gerando os boxplotos por dia da semana não tem nenhum outlier nos dados, então não foi preciso fazer nenhum tratamento dos dados.O único tratamento foi descobrir o dia da semana relativo a data mostrada nos dados.
+
+
+##Perguntas
+###1- A popularidade da linguagem python é maior doque a da linguagem c? (medida estatística: Média)
+
+Fazendo um boxplot das duas linguagens vemos que a linguagem python parece ser bem mais popular que a linguagem c. Isso se baseando nos valores dos dados coletados da amostra, ainda não podemos afirmar nada em relação a população dos dados.
+
+```{r}
+
+#Pegando só duas linguagens c e python
+linguagem_c = github[github$file_extension == c("c"),]
+linguagem_py = github[github$file_extension == c("py"),]
+
+
+sd(linguagem_c$users)
+sd(linguagem_py$users)
+
+linguagens %>% group_by(file_extension) %>%
+  ggplot(aes(x = file_extension, 
+             y = users,
+             fill=file_extension)) + 
+  geom_boxplot() +
+  ggtitle("Popularidade das linguagens Java e C") + 
+  labs(x = "Linguagem", y = 'Quantidade de usuários') +
+  theme(legend.position="none")
+
+```
+
+Fazendo o bootstrap dos dados da linguagem c.
+```{r}
+mean.c = linguagem_c %>% 
+  bootstrap(mean(users), 
+            R = 5000) %>% 
+    CI.percentile(probs = c(.025, .975))
+mean.c
+
+```
+
+Fazendo o bootstrap dos dados da linguagem py.
+```{r}
+mean.py = linguagem_py %>% 
+  bootstrap(mean(users), 
+            R = 5000) %>% 
+    CI.percentile(probs = c(.025, .975))
+mean.py
+```
+
+```{r}
+df = data.frame(rbind(mean.c, 
+                      mean.py
+                      ))
+df$medida = c(' Linguagem C', 'Linguagem Python')
+
+df %>% 
+  ggplot(aes(x = medida, ymin = X2.5., ymax = X97.5.)) + 
+  geom_errorbar(width = .2)
+```
+
+Como os intervalos não tem intersecção de valores, assim pode-se dizer que estatisticamente, a linguagem python é mais popular que a linguagem c.
+
+##2- A popularidade das atividades de 2017 é maior doque de 2016? (medida estatística: Mediana)
+
+```{r}
+linguagens %>% group_by(the_year) %>%
+  ggplot(aes(x = the_year, 
+             y = users,
+             fill=the_year)) + 
+  geom_boxplot() +
+  ggtitle("Popularidade das linguagens de acordo com o ano") + 
+  labs(x = "Linguagem", y = 'Quantidade de usuários') +
+  theme(legend.position="none")
+```
+
+Analisando rapidamente esse boxploto dos dados de popularidade de acordo com o ano, parece não ter muita diferença na popularidade de um para o outro. 
+
+Fazendo o bootstrap de acordo com o ano de 2016.
+
+```{r}
+median.2016 = linguagens%>% 
+  filter(the_year==2016) %>% 
+  bootstrap(median(users), 
+            R = 5000) %>% 
+    CI.percentile(probs = c(.025, .975))
+median.2016
+```
+
+Fazendo o bootstrap de acordo com o ano de 2017.
+
+```{r}
+median.2017 = linguagens%>% 
+  filter(the_year==2017) %>% 
+  bootstrap(median(users), 
+            R = 5000) %>% 
+    CI.percentile(probs = c(.025, .975))
+median.2017
+```
+```{r}
+df = data.frame(rbind(median.2016, 
+                      median.2017
+                      ))
+df$medida = c('Ano 2016', 'Ano 2017')
+
+df %>% 
+  ggplot(aes(x = medida, ymin = X2.5., ymax = X97.5.)) + 
+  geom_errorbar(width = .2)
+```
+
+Como a intercesção dos intervalos não tem como dizer se um ano foi mais popular doque o outro, mas provavelmente não.
+
+##Python é o tipo de arquivo mais popular, ou pelo menos a linguagem mais popular?
+
+Como python teve uma vantagem muito grande em popularidade em relação a linguagem c(outra linguagem bem consolidade e popular entre os programadores), fez-me pensar se ela não seria a linguagem mais popular.
+
+Fazendo a media de popularidade por arquivo e ordenando de forma descrescente, vemos que nos dados a linguagem python fica em 5º lugar entre os arquivos e 2º em linguagem de programação, já que md json e html não são linguagens de programação.
+
+```{r}
+lmp <- github %>% group_by(file_extension) %>% summarise(Popularidade = mean(users))
+arrange(lmp,desc(Popularidade))
+head(lmp)
+```
+
+Em média de popularidade vemos que o arquivo de extensão mais popular nessa amostra é md, seguida de js. Python está em quinto nessa lista.
+
+Agora pegando esses 2 primeiros arquivos e python, vamo fazer o intervalo para saber se isso mesmo se confirma.
+
+```{r}
+median.py = github%>% 
+  filter(file_extension=="py") %>% 
+  bootstrap(median(users), 
+            R = 5000) %>% 
+    CI.percentile(probs = c(.025, .975))
+median.py
+
+
+median.md = github%>% 
+  filter(file_extension=="md") %>% 
+  bootstrap(median(users), 
+            R = 5000) %>% 
+    CI.percentile(probs = c(.025, .975))
+median.md
+
+
+median.js = github%>% 
+  filter(file_extension=="js") %>% 
+  bootstrap(median(users), 
+            R = 5000) %>% 
+    CI.percentile(probs = c(.025, .975))
+median.js
+
+df = data.frame(rbind(median.py, 
+                      median.md,
+                      median.js
+                      
+                      ))
+df$medida = c('Python', 'MD', 'JS')
+
+df %>% 
+  ggplot(aes(x = medida, ymin = X2.5., ymax = X97.5.)) + 
+  geom_errorbar(width = .2)
+```
+
+Como podemos ver não a intersecção de valores dos intervalores, logo python não está nem em segundo nessa lista, e podemos ainda afirmar que md é o arquivo de extensão mais popular no github entre os anos de 2016 e 2017. Como javaScrpit também teve uma vantagem maior que python, podemos também dizer que entres as linguagens de programação javaScript é a mais popular.
+
+Outra pergunta que pode ser feita é em relação aos dias da semana
+
+##4-Qual o dia de semana mais popular entre os tipos de arquivos?
+
+```{r}
+median.m = github%>% 
+  filter(day=="Monday") %>% 
+  bootstrap(median(users), 
+            R = 5000) %>% 
+    CI.percentile(probs = c(.025, .975))
+median.m
+
+
+median.t = github%>% 
+  filter(day=="Tuesday") %>% 
+  bootstrap(median(users), 
+            R = 5000) %>% 
+    CI.percentile(probs = c(.025, .975))
+median.t
+
+
+median.w = github%>% 
+  filter(day=="Wednesday") %>% 
+  bootstrap(median(users), 
+            R = 5000) %>% 
+    CI.percentile(probs = c(.025, .975))
+median.w
+
+median.th = github%>% 
+  filter(day=="Thursday") %>% 
+  bootstrap(median(users), 
+            R = 5000) %>% 
+    CI.percentile(probs = c(.025, .975))
+median.th
+
+median.f = github%>% 
+  filter(day=="Friday") %>% 
+  bootstrap(median(users), 
+            R = 5000) %>% 
+    CI.percentile(probs = c(.025, .975))
+median.f
+
+median.sa = github%>% 
+  filter(day=="Saturday") %>% 
+  bootstrap(median(users), 
+            R = 5000) %>% 
+    CI.percentile(probs = c(.025, .975))
+median.sa
+
+median.su = github%>% 
+  filter(day=="Sunday") %>% 
+  bootstrap(median(users), 
+            R = 5000) %>% 
+    CI.percentile(probs = c(.025, .975))
+median.su
+
+df = data.frame(rbind(median.m, 
+                      median.t,
+                      median.w,
+                      median.th,
+                      median.f,
+                      median.sa,
+                      median.su
+                      
+                      ))
+df$medida = c('Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday')
+
+df %>% 
+  ggplot(aes(x = medida, ymin = X2.5., ymax = X97.5.)) + 
+  geom_errorbar(width = .2)
+```
+
+Não parece ter dia mais popular todos estão em uma certa faixa de valores, não podemos então afirmar nada com certeza. A resposta é: Não sei dizer se tem alguma dia mais popular doque os outros, mas provavelmente não.
+
+Se o dia não importa será que os meses então influenciam na popularidade?
+
+##5-A proporção de produtividade dos usuários é maior no inicio ou final do ano?
+
+Tratando o inicío do ano como sendo os três primeiros meses e o resto como sendo o final do ano.
+
+```{r}
+mmp <- github %>% group_by(the_month) %>% summarise(Popularidade = mean(users))
+arrange(mmp,desc(Popularidade))
+
+```
+
+
+```{r}
+
+github <- github %>% mutate (
+              inicio_ano = case_when(
+      (the_month == 1 | the_month == 2 | the_month == 3  ) ~ TRUE,
+      TRUE~FALSE
+      
+    ))
+
+median.ini = github%>% 
+  filter(inicio_ano) %>% 
+  bootstrap(median(users), 
+            R = 5000) %>% 
+    CI.percentile(probs = c(.025, .975))
+median.ini
+
+
+median.rest = github%>% 
+  filter(!inicio_ano) %>% 
+  bootstrap(median(users), 
+            R = 5000) %>% 
+    CI.percentile(probs = c(.025, .975))
+median.rest
+
+
+df = data.frame(rbind(median.ini, 
+                      median.rest
+                      
+                      ))
+df$medida = c('Inicio do ano', 'Resto do ano')
+
+df %>% 
+  ggplot(aes(x = medida, ymin = X2.5., ymax = X97.5.)) + 
+  geom_errorbar(width = .2)
+```
+
+
+Como observamos acima parece haver sim uma popularidade maior no início do ano mais doque no final, mas não da pra afirmar com uma certa certeza, pos existe uma intersecção entre os intervalos. Seria interessante busca a causa disso será que é porque os meses de férias nos Estados unidos fica geralmente no meio do ano? Ou seria por feriados?
+
+Com essa simples e curta análise podemos responder algumas dúvidas e perguntas que poderiamos ter sobre os dados, é interessante buscar questões como essa e depois tentar descobrir a causa de tais respostas.
+
+
