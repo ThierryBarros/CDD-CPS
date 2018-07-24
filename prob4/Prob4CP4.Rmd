@@ -1,0 +1,170 @@
+---
+title: "R Notebook"
+output:
+  html_document:
+    df_print: paged
+---
+
+```{r,echo=FALSE}
+library(coin)
+library(here)
+library(readr)
+library(tidyverse)
+library(resample)
+library(timeDate)
+library(lubridate)
+github = read_csv("github.csv",
+                  col_types = cols(
+                        file_extension = col_character(),
+                        month_day = col_character(),
+                        the_month = col_character(),
+                        the_year = col_character(),
+                        users = col_integer())
+  )
+```
+
+
+Os dados a serem utilizados sÃ£o dados da atividade global do github. As linguagens que serão analisadas são linguagem c e python. Duas linguagens bem famosas entre os programadores. Foram coletados quase 500 observações de cada uma das linguagens.
+
+```{r}
+library(lubridate)
+#Omitindo os dados nulos(Mas nÃ£o tinha nenhum)
+github = na.omit(github)
+
+#Classificando as observaÃ§Ãµes por dia da semana
+github$date = paste(github$month_day, github$the_month, github$the_year, sep="-")
+github$day = format.Date(as.Date(github$date), "%A") 
+
+linguagens= github[github$file_extension == c("py","c"),]
+
+#Classificando as observaÃ§Ãµes por dia da semana
+github$date = paste(github$month_day, github$the_month, github$the_year, sep="-")
+github$day = format.Date(as.Date(github$date), "%A") 
+
+linguagens %>% 
+    ggplot(aes(x = day, y = users)) + 
+    geom_boxplot(width = .5, outlier.color = NA) +   
+    geom_jitter(width = .1, size = 2, alpha = .5, color = "red")+ xlab("Dias da semana") +
+  ylab("Popularidade")
+
+```
+
+Como podemos ver acima os dados nÃ£o possuiam nenhum problema com valores faltantes e o desvio padrÃ£o foi relativamente alto, gerando os boxplotos por dia da semana nÃ£o tem nenhum outlier nos dados, entÃ£o nÃ£o foi preciso fazer nenhum tratamento dos dados.O Ãºnico tratamento foi descobrir o dia da semana relativo a data mostrada nos dados.
+
+
+##Perguntas
+###1- A popularidade da linguagem python é maior doque a da linguagem c? 
+
+#Usando intervalo de confianã
+
+Fazendo um boxplot das duas linguagens vemos que a linguagem python parece ser bem mais popular que a linguagem c. Isso se baseando nos valores dos dados coletados da amostra, ainda nÃ£o podemos afirmar nada em relaÃ§Ã£o a populaÃ§Ã£o dos dados.
+
+```{r}
+
+#Pegando sÃ³ duas linguagens c e python
+linguagem_c = github[github$file_extension == c("c"),]
+linguagem_py = github[github$file_extension == c("py"),]
+
+
+sd(linguagem_c$users)
+sd(linguagem_py$users)
+
+linguagens %>% group_by(file_extension) %>%
+  ggplot(aes(x = file_extension, 
+             y = users,
+             fill=file_extension)) + 
+  geom_boxplot() +
+  ggtitle("Popularidade das linguagens Java e C") + 
+  labs(x = "Linguagem", y = 'Quantidade de usuÃ¡rios') +
+  theme(legend.position="none")
+
+```
+
+Fazendo o bootstrap dos dados da linguagem c.
+```{r}
+mean.c = linguagem_c %>% 
+  bootstrap(mean(users), 
+            R = 5000) %>% 
+    CI.percentile(probs = c(.025, .975))
+mean.c
+
+```
+
+Fazendo o bootstrap dos dados da linguagem py.
+```{r}
+mean.py = linguagem_py %>% 
+  bootstrap(mean(users), 
+            R = 5000) %>% 
+    CI.percentile(probs = c(.025, .975))
+mean.py
+```
+
+```{r}
+df = data.frame(rbind(mean.c, 
+                      mean.py
+                      ))
+df$medida = c(' Linguagem C', 'Linguagem Python')
+
+df %>% 
+  ggplot(aes(x = medida, ymin = X2.5., ymax = X97.5.)) + 
+  geom_errorbar(width = .2)
+```
+
+Como os intervalos nÃ£o tem intersecÃ§Ã£o de valores, assim pode-se dizer que estatisticamente, a linguagem python Ã© mais popular que a linguagem c.
+
+##USANDO TESTE DE HIPÓTESE
+
+```{r}
+linguagens = linguagens %>% 
+  select(file_extension, users)
+
+medias = linguagens %>% 
+  group_by(file_extension) %>% 
+  summarise(media = mean(users))
+
+medias
+
+diff.media.observada = diff(medias$media)
+```
+```{r}
+set.seed(1)
+glimpse(linguagens)
+diffs = replicate(10000, {
+  medias = linguagens %>% 
+    mutate(id_embaralhado = sample(file_extension, n())) %>% 
+    group_by(id_embaralhado) %>% 
+    summarise(media = mean(users))
+  e1 = medias %>% 
+    filter(id_embaralhado == 'c')
+  e4 = medias %>% 
+    filter(id_embaralhado == 'py')
+  return(e1$media - e4$media)
+})
+glimpse(diffs)
+tibble(diferenca = diffs) %>% 
+  ggplot(aes(x = diferenca)) + 
+  geom_histogram(bins = 30) + 
+  geom_vline(xintercept = diff.media.observada)
+
+# p-valor!
+sum(abs(diffs) >= abs(diff.media.observada)) / length(diffs)
+```
+
+Como podemos ver no gráfico a média das diferenças de popularidade entre as linguagens ficou muito distante da média obtido por linguagens que não tem diferença de popularidade, mostrando que existe diferença entre as linguagens.
+
+```{r}
+
+median_test(users ~ as.factor(file_extension), 
+            data = linguagens, 
+            distribution = "exact")
+
+
+permutationTest2(linguagens, median(users), treatment = file_extension)$stats %>% t()
+
+```
+
+Como podemos ver o teste do p-valor valor na mediana deu um valor muito baixo, então a probabilidade de serem diferente é muito grande, rejeitamos a hiótese nula. P-valor é a probabilidade de se obter uma estatística de teste igual ou mais extrema que aquela observada em uma amostra, sob a hipótese nula.
+
+De acordo com os resultados dos teste de IC e Hipótese, podemos ver que os dois chegaram ao mesmo resultado, de que a linguagem python é mais popular doque a linguagem c.
+
+No teste de IC podemos ver que a linguagem python é mais popular que c, já no teste de hipóteses só sabemos que uma é mais popular que a outra.
