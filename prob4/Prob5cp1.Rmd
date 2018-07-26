@@ -1,0 +1,126 @@
+---
+title: 'log(museums) 5, CP 1: Regressão e romance'
+author: "Thierry Barros"
+date: "July 25, 2018"
+output: html_document
+---
+
+```{r}
+library(openintro)
+library(tidyverse)
+theme_set(theme_bw())
+library(modelr)
+library(broom)
+```
+
+```{r}
+dados = read.csv("speed-dating/speed-dating.csv")
+```
+
+```{r}
+dados =  select(dados,museums,art) 
+dados = dados %>% na.omit()
+ggpairs(dados)
+
+```
+
+
+
+```{r}
+hist(dados$art , breaks=10 )
+hist(dados$museums , breaks=10 )
+boxplot(dados , xlab="a" , las=2)
+```
+
+
+
+```{r}
+
+ggplot(dados, aes(x = museums, y = art)) + 
+  geom_point(alpha = 0.4) + 
+  geom_abline(intercept = 1, slope = .80, color  = "red") 
+```
+```{r}
+ggplot(dados, aes(x = museums, y = art)) + 
+  geom_point(alpha = 0.4) + geom_smooth(method = "lm", se = FALSE)
+```
+```{r}
+mod <- lm(art ~ museums, data = dados)
+
+# sintaxe base R:
+summary(mod)
+confint(mod)
+
+# broom, que acho mais recomendÃ¡vel: 
+tidy(mod, conf.int = TRUE)
+glance(mod) # depois falaremos desse
+
+dados %>% 
+  add_predictions(model = mod) %>% # add o que o modelo estima p cada hs_grad
+  ggplot(mapping = aes(x = museums, y = art)) + 
+  geom_point(alpha = 0.4, size = .5) + 
+  geom_line(aes(y = pred), colour = "red")  + 
+  geom_abline(intercept = 1, slope = .80, color  = "darkblue") 
+```
+
+
+
+```{r}
+# variÃ¢ncia de y
+var.y2 <- sum((dados$art - mean(dados$museums))^2)
+# variÃ¢ncia dos resÃ�duos do modelo
+var.residuals <- sum(mod$residuals^2)
+
+#calculando e conferindo o R^2
+(var.y2 - var.residuals)/var.y2
+rsquare(mod, data = dados)
+
+glance(mod)
+```
+```{r}
+rmse(mod, dados)
+mae(mod, dados)
+qae(mod, dados)
+```
+```{r}
+library(purrr)
+boot <- modelr::bootstrap(dados, 1000)
+
+models <- map(boot$strap, ~ lm(art ~ museums, data = dados))
+tidied <- map_df(models, broom::tidy, .id = "id")
+
+tidied %>% 
+  ggplot(aes(x = estimate)) + 
+  geom_histogram(bins = 30) + 
+  facet_grid(.~ term, scale = "free")
+```
+
+
+```{r}
+library(boot)
+library(ISLR) # dados
+
+```
+
+Usando o pacote `boot` Ã© preciso criar a log(museums)Ã§Ã£o que serÃ¡ usada no bootstrap:
+
+```{r}
+boot.fn <- function(data, index) {
+  return(coef(lm(art ~ museums, data=dados, subset = index)))
+}
+boot.fn(dados, 1:4000)
+```
+```{r}
+regressao.b = boot(dados, boot.fn, 1000)
+# tidy(regressao.b, conf.int = TRUE, conf.method = "perc") tidy(boot.out) parece bugado em 2017-06-13
+
+plot(regressao.b, index=1) # intercept 
+plot(regressao.b, index=2) # horsepower
+
+```
+```{r}
+library(ggfortify)
+tidy(mod)
+autoplot(mod, label.size = 3, alpha = 0.4)
+
+```
