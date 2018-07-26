@@ -1,0 +1,345 @@
+---
+title: 'log(museums) 5, CP 1: RegressÃ£o e romance'
+author: "Thierry Barros"
+date: "July 25, 2018"
+output: html_document
+---
+
+```{r}
+library(openintro)
+library(tidyverse)
+theme_set(theme_bw())
+library(modelr)
+library(broom)
+library(boot)
+library(ISLR) 
+
+```
+
+Leitura dos dados românticos:
+
+```{r}
+dados = read.csv("speed-dating/speed-dating.csv")
+```
+
+##Analisaremos a influencia que museu tem na arte, entre homens mulheres:
+
+Primeiro separamos os dados entre homens e mulheres, depois selecionamos as variáveis que serão utilizadas para criar o modelo. Excluindo amostras com valores nulos.
+
+```{r}
+dadosM =  dados %>% filter(dados$gender==1)
+dadosM = select(dadosM,museums,art)
+dadosM = dadosM %>% na.omit()
+
+dadosF =  dados %>% filter(dados$gender==0)
+dadosF = select(dadosF,museums,art)
+dadosF = dadosF %>% na.omit()
+
+```
+
+Uma breve análise da distribuição dos dados, e se existem outliers:
+
+```{r}
+hist(dadosM$art , breaks=10 )
+hist(dadosM$museums , breaks=10 )
+boxplot(dadosM , xlab="a" , las=2)
+
+hist(dadosF$art , breaks=10 )
+hist(dadosF$museums , breaks=10 )
+boxplot(dadosF , xlab="a" , las=2)
+```
+
+Como podemos ver no gráfico acima a distribuição é um pouco diferente para homens e mulheres. Existem algunas outliers mais são muito poucos.
+
+```{r}
+
+ggplot(dadosM, aes(x = museums, y = art)) + 
+  geom_point(alpha = 0.4) + 
+  geom_abline(intercept = 1, slope = .80, color  = "red") 
+
+ggplot(dadosF, aes(x = museums, y = art)) + 
+  geom_point(alpha = 0.4) + 
+  geom_abline(intercept = 1, slope = .80, color  = "red") 
+```
+
+Tentando achar uma função linear no olho que mais bem presente a distruição dos dados para as duas classes.
+
+```{r}
+ggplot(dadosM, aes(x = museums, y = art)) + 
+  geom_point(alpha = 0.4) + geom_smooth(method = "lm", se = FALSE)
+
+ggplot(dadosF, aes(x = museums, y = art)) + 
+  geom_point(alpha = 0.4) + geom_smooth(method = "lm", se = FALSE)
+```
+
+Criando o modelo linear para os dados, ele ficou bem próximo da nossa estimativa no olho. Parece que um modelo linear é a melhor opção para representar os dados.
+
+```{r}
+modM <- lm(art ~ museums, data = dadosM)
+
+
+summary(modM)
+confint(modM)
+
+
+tidy(modM, conf.int = TRUE)
+glance(modM) 
+
+dadosM %>% 
+  add_predictions(model = modM) %>% 
+  ggplot(mapping = aes(x = museums, y = art)) + 
+  geom_point(alpha = 0.4, size = .5) + 
+  geom_line(aes(y = pred), colour = "red")  + 
+  geom_abline(intercept = 1, slope = .80, color  = "darkblue") 
+
+modF <- lm(art ~ museums, data = dadosF)
+
+
+summary(modF)
+confint(modF)
+
+
+tidy(modF, conf.int = TRUE)
+glance(modF) 
+
+dadosM %>% 
+  add_predictions(model = modF) %>% 
+  ggplot(mapping = aes(x = museums, y = art)) + 
+  geom_point(alpha = 0.4, size = .5) + 
+  geom_line(aes(y = pred), colour = "red")  + 
+  geom_abline(intercept = 1, slope = .80, color  = "darkblue")
+```
+
+Como podemos ver o dados gerados pelo modelo dos homens acima. Os resíduos ficam com uma diferença mínima de -3.7 e máxima de 3.26, os resíduos de uma regressão linear são as diferenças entre os pontos observados e a curva que estimamos. Quanto aos coeficientes o intercépto(o ponto onde a reta corta o eixo y) ficou com -0.06, e o valor de museu ficou 0.95 ou seja a cada 1 ponto de museu, a arte cresce 0.95.
+
+Enqunato que para as mulheres.Os resíduos ficam com uma diferença mínima de -4.6 e máxima de 4.6(maior doque a dos homens). Quanto aos coeficientes o intercépto ficou com -0.70, e o valor de museu ficou 0.95 ou seja a cada 1 ponto de museu, a arte cresce 0.87.
+
+Em ambos o p-value ficou bem pequeno 2.2e-16. P-value é a probabilidade de se obter uma estatística de teste igual ou mais extrema que aquela observada em uma amostra, sob a hipótese nula. A probabilidade da hipótese nula é bem pequena.
+
+Calculando a variância, a variância dos residuos do modelos, para conferir o R²:
+
+```{r}
+# variÃƒÂ¢ncia de y
+var.y2 <- sum((dadosM$art - mean(dadosM$museums))^2)
+# variÃƒÂ¢ncia dos resÃƒï¿½duos do modelo
+var.residuals <- sum(modM$residuals^2)
+
+#calculando e conferindo o R^2
+(var.y2 - var.residuals)/var.y2
+rsquare(modM, data = dadosM)
+
+glance(modM)
+
+# variÃƒÂ¢ncia de y
+var.y2 <- sum((dadosF$art - mean(dadosF$museums))^2)
+# variÃƒÂ¢ncia dos resÃƒï¿½duos do modelo
+var.residuals <- sum(modF$residuals^2)
+
+#calculando e conferindo o R^2
+(var.y2 - var.residuals)/var.y2
+rsquare(modF, data = dadosF)
+
+glance(modF)
+```
+
+R² ficou com 0.75 para homens e 0.63 homens, o R² é a medida que indica o quanto o modelo consegue explicar os dados, como podemos ver ficaram em valores médios os dois, só que o dos homens ficou um pouco melhor.
+
+Algumas métricas que podem ser obervadas dos modelos: 
+
+```{r}
+rmse(modM, dadosM)
+rsquare(modM, dadosM)
+mae(modM, dadosM)
+qae(modM, dadosM)
+
+rmse(modF, dadosF)
+rsquare(modF, dadosF)
+mae(modF, dadosF)
+qae(modF, dadosF)
+```
+
+Rmse e mae são medidas para calcular a precisão do modelo, como podemos ver pelo valores o rmse para homens foi melhor doque de mulheres e o mae de mulheres foi melhor doque o dos homens. Em ambos a diferença foi pequena e a qualidade do modelo em relação aos erros foi média.
+
+Usando o pacote `boot` para realizar a regressão dos dados:
+
+```{r}
+boot.fn <- function(data, index) {
+  return(coef(lm(art ~ museums, data=dadosM, subset = index)))
+}
+boot.fn(dadosM, 1:2000)
+
+boot.fn <- function(data, index) {
+  return(coef(lm(art ~ museums, data=dadosF, subset = index)))
+}
+boot.fn(dadosF, 1:2000)
+```
+
+A função para homens ficou :  arte = -0.0870080 + 0.9673215*museus
+
+A função para mulheres ficou :  arte = 0.05783263 + 0.94793082 *museus
+
+Fazendo a regressão dos dados e ponstrando  histograma de t:
+```{r}
+regressao.M = boot(dadosM, boot.fn, 500)
+# tidy(regressao.b, conf.int = TRUE, conf.method = "perc") tidy(boot.out) parece bugado em 2017-06-13
+
+plot(regressao.M, index=1) # intercept 
+plot(regressao.M, index=2) # horsepower
+
+
+regressao.F = boot(dadosF, boot.fn, 500)
+# tidy(regressao.b, conf.int = TRUE, conf.method = "perc") tidy(boot.out) parece bugado em 2017-06-13
+
+plot(regressao.F, index=1) # intercept 
+plot(regressao.F, index=2) # horsepower
+```
+
+Com o histograma de t podemos ver que os valores ficaram entre 0.82 e 0.90 para ambos os modelos.
+
+Diagnostico dos modelos:
+
+```{r}
+library(ggfortify)
+tidy(modM)
+autoplot(modM, label.size = 3, alpha = 0.4)
+
+tidy(modF)
+autoplot(modF, label.size = 3, alpha = 0.4)
+```
+
+Acima podemos ver em gráficos algumas estatísticas do modelo.
+
+Enfim, podemos concluir que um regressão linear serviu para representar bem a relação dos dados de arte e museu, separados por gênero.
+
+##Analise multivariada, agora vamos analisar a influencia que fun e musica tem em like:
+
+```{r}
+dados = read.csv("speed-dating/speed-dating.csv")
+```
+
+Selecionanado dos dados e removendo os valores nulos:
+
+```{r}
+dados =  select(dados,like,fun,music) 
+dados = dados %>% na.omit()
+
+```
+
+Fazendo o histograma das distribuição dos dados e o boxplot:
+
+```{r}
+hist(dados$like , breaks=10 )
+hist(dados$fun , breaks=10 )
+hist(dados$music , breaks=10 )
+boxplot(dados , xlab="a" , las=2)
+```
+
+O histograma das variáveis like e fun são bem parecidas, mas a do musica é muito diferente das outras duas, todas tem outliers(valores extremos), mas a que mais tem é music.
+
+Criando no olho uma função linear para representar a distribuição dos dados:
+
+Nesse caso os dados são bem mais espalados.
+
+```{r}
+
+ggplot(dados, aes(x = fun+music, y = like)) + 
+  geom_point(alpha = 0.4) + 
+  geom_abline(intercept = 0.1, slope = .5, color  = "red") 
+```
+
+Criando  o modelo dos dados e calculando as métricas:
+
+```{r}
+mlm <- lm(like ~ fun + music, data = dados)
+
+dados %>% 
+  add_predictions(mlm) %>% 
+  ggplot(aes(x = fun+music, y = like)) + 
+  #geom_violin() + 
+  geom_point(position = position_jitter(width = 0.1))  + 
+  geom_point(aes(y = pred), size = 4, colour = "red") 
+
+tidy(mlm, conf.int = T) %>% 
+  select(-statistic, -std.error)
+
+model_plot = dados %>% 
+  data_grid(fun, music) %>% 
+  add_predictions(mlm)
+
+model_plot %>% 
+  ggplot(aes(x  = music, y = pred, colour = fun)) + 
+  geom_line() #+ 
+  #facet_grid(. ~ fun)
+
+model_plot %>% 
+  ggplot(aes(x  = music, y = pred, colour = fun)) + 
+  geom_line() + 
+  geom_point(data = dados, aes(y = like))
+
+tidy(mlm, conf.int = T)
+glance(mlm)
+
+
+```
+
+Gerando gráficos dos dados do resíduos:
+
+```{r}
+dados = dados %>% 
+  add_residuals(mlm)
+
+ggplot(dados, aes(resid)) + 
+  geom_freqpoly(binwidth = 2)
+
+ggplot(dados, aes(fun, resid)) + 
+  geom_ref_line(h = 0, colour = "grey") +
+  geom_point(position = position_jitter(width = 0.1))
+
+ggplot(dados, aes(music, resid)) + 
+  geom_ref_line(h = 0, colour = "grey") +
+  geom_point(position = position_jitter(width = 0.1))
+
+ggplot(dados, aes(like, resid)) + 
+  geom_ref_line(h = 0, colour = "grey") +
+  geom_point(position = position_jitter(width = 0.1))
+
+```
+
+Como podemos ver os resíduos são bem mais agora, mostrando que o modelo não consegue explicar tão bem os dados.
+
+Analisando algumas métricas do modelos gerado:
+
+```{r}
+rmse(mlm, dados)
+rsquare(mlm, dados)
+mae(mlm, dados)
+qae(mlm, dados)
+```
+
+Os erros de rmse e mae, estão médio-altos. E o R² está menor(0.47), mostrando que o modelo não consegue representar nem 50% dos dados.
+
+Fazendo o boot dos dados do modelo:
+
+```{r}
+boot.fn <- function(data, index) {
+  return(coef(lm(like ~ fun + music, data = dados, subset = index)))
+}
+boot.fn(dados, 1:2000)
+```
+
+A função desse modleo ficou: like = 2.13557054 + fun*0.66456300= - 0.02653869*music
+
+Criando a regressão do modelo:
+
+```{r}
+regressao = boot(dados, boot.fn, 500)
+# tidy(regressao.b, conf.int = TRUE, conf.method = "perc") tidy(boot.out) parece bugado em 2017-06-13
+
+plot(regressao, index=1) # intercept 
+plot(regressao, index=2) # horsepower
+```
+
+Criando a regressão e analisando o valor de t, podemos ver que ele ficou abaixo, entre 0.60 e 0.66, é um valor baixo para o t.
+
+
+
