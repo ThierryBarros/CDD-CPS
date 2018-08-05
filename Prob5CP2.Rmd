@@ -1,0 +1,180 @@
+---
+title: 'Prob 5, CP 2: Regress??o Log??stica e match'
+author: "Thierry Barros"
+date: "August 5, 2018"
+output: html_document
+---
+
+```{r}
+library(GGally)
+library(pscl)
+library(broom)
+library(tidyverse)
+library(modelr) # devtools::install_github("hadley/modelr")
+
+theme_set(theme_bw()) 
+
+```
+
+Leitura dos dados rom??nticos, com `dec`, que diz se p1 gostaria de se encontrar novamente com p2:
+
+```{r}
+dados = read.csv("speed-dating/speed-dating2.csv")
+
+dados <- dados %>% 
+  select(movies, music, tv, gaming, sports, dec,gender,age,samerace) %>%
+  na.omit() %>%
+  mutate(
+         gender = as.character(gender),
+         samerace = as.character(samerace)) 
+
+ggpairs(dados)
+
+```
+
+Como podemos ver as correla????es acima parece ter efeitos, positivos e negativos, entre as vari??veis analisadas e a vari??vel dec.
+
+Analisando a rela????o entre a dec e o samerace, n??o parece ter muita rela????o entre as vari??veis. A propor????o de dec(no,yes) de acordo com o a vari??vel samerace n??o parece alterar muito. S?? que tem mais dados de pessoas com ra??a diferente(Isso ?? bom para mostrar que o preconceito racial est?? diminuindo, vai Planeta!).
+
+```{r}
+dados %>% 
+  ggplot(aes(x = samerace, fill = dec)) + 
+  geom_bar(position = "dodge")
+```
+
+Outra maneira de avaliar rela????o entre uma vari??vel gaming(gostos por jogos eletr??nicos) e a dec(reencontro). Como podemos ver quanto mais a pessoa gosta de gaming mais chance tem de ter uma dec(reecontro).
+```{r}
+
+dados %>% 
+  ggplot(aes(x = dec, y = gaming)) + 
+  geom_violin(aes(fill = dec), alpha = .4) + 
+  #geom_boxplot(aes(fill = survived), alpha = .4) + 
+  geom_count() + 
+  #geom_jitter(width = .1, alpha = .3) + 
+  coord_flip() 
+```
+
+# Fit univariado
+
+Analisando os dados usando odds ratio:
+
+```{r}
+bm <- glm(dec ~ gaming, 
+          data = dados, 
+          family = "binomial")
+
+tidy(bm, conf.int = TRUE) %>% 
+  select(-statistic, -p.value)
+
+tidy(bm, conf.int = TRUE, exponentiate = TRUE) %>% 
+  select(-statistic, -p.value)
+
+
+```
+
+Parece ter uma reala????o pequena, mas positiva, entre o dec e ratio. devido ao peso de gaming na fun????o 1.0649576.
+
+```{r}
+teste = data.frame(gaming = 1:5)
+
+bm %>% 
+  augment(newdata = teste, 
+          type.predict = "response")
+
+```
+
+N??o tem R2 nesse tipo de modelo, oque dificulta a analise de qualidade do modelo criado.
+
+```{r}
+
+glance(bm)
+
+pR2(bm)
+```
+
+## Visualizando o modelo
+
+O modelo praticamente ficou ajustados aos dados em uma fun????o linear:
+
+
+```{r}
+bm %>% 
+  augment(type.predict = "response")  %>% 
+  mutate(decNum = ifelse(dec == "yes", 1, 0)) %>% 
+  ggplot(aes(x = gaming)) + 
+  geom_count(aes(y = decNum), alpha = 0.5) + 
+  geom_line(aes(y = .fitted))
+```
+## Preditor cat??gorico
+
+Agora fazendo um modelo para calcular a rela????o entre dados categ??ricos gender e dec. 
+
+```{r}
+bm <- glm(dec ~ gender, 
+          data = dados, 
+          family = "binomial")
+tidy(bm, conf.int = TRUE)
+glance(bm)
+pR2(bm)
+#summary(bm)
+```
+
+Como podemos ver no gr??fico abaixo parece que h?? sim uma varia????o de dec, de acordo com o gender. Parece que quando o gender ??  1(Acho que ?? mulher), tem mais chances de o dec(reecontro) ser positivo.
+
+```{r}
+bm %>% 
+  augment(type.predict = "response")  %>% 
+  mutate(decNum = ifelse(dec == "yes", 1, 0)) %>% 
+  ggplot(aes(x = gender)) + 
+  geom_count(aes(y = decNum), alpha = 0.5) + 
+  geom_point(aes(y = .fitted), color = "orange")
+```
+
+#Multivariada
+
+Analise da rela????o utilizando 3 vari??veis gender, samerace e age para predizer os dados de dec. Todas as vari??veis s??o categ??ricas no exemplo:
+
+```{r}
+bm <- glm(dec ~  gender + samerace + age, 
+          data = dados, 
+          family = "binomial")
+
+tidy(bm, conf.int = TRUE)
+tidy(bm, conf.int = TRUE, exponentiate = TRUE)
+
+glance(bm)
+pR2(bm)
+
+```
+```{r}
+m = dados %>% 
+  data_grid(gender, samerace, age)
+mm = augment(bm, 
+             newdata = m, 
+             type.predict = "response")
+
+ggplot(mm, aes(x = age, colour = samerace)) + 
+  geom_line(aes(y = .fitted)) +  
+  facet_grid(.~gender) 
+
+```
+
+Parece que quanto menor a idade maior a chance de dec(reecontro) e que samerace influencia um pouco nas chances de dec(reecontro).
+
+```{r}
+previsoes = bm %>% 
+  augment(type.predict = "response") %>% 
+  mutate(segundo_modelo = .fitted > .5, 
+         segundo_dados = dec == "yes")
+
+table(previsoes$segundo_modelo, previsoes$segundo_dados)
+xtabs(~ segundo_modelo + segundo_dados, data = previsoes)
+
+require(vcd)
+mosaic(segundo_dados ~ segundo_modelo, data = previsoes, 
+       shade = T)
+```
+
+Analisando o gr??fico acima vemos quea fun????o n??o foi t??o boa ela acertou em cerca de 50% das vezes. Como podemos ver parece que algumas vari??veis como gender,age,samerace parecem ter influencias positivas ou negativas com a vari??vel dec que que diz se p1 gostaria de se encontrar novamente com p2.
+
+
